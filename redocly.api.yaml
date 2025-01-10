@@ -1,0 +1,1263 @@
+openapi: 3.0.0
+info:
+  title: Specter API
+  description: |
+    # Introduction
+    Welcome to the Specter API documentation which gives you all the tools you need to be able to get the most up-to-date information from out datasets to make better decisions on investments. 
+
+    The documentation here will make it easy for you to get everything we have from company data, through to managing your lists and searches.
+
+    It provides a programmatic way for you to automate your processes giving you more time to focus.
+
+    We're excited to hear of any improvements or changes you would like to be made to the API, so please get in contact with us by emailing  api-support@tryspecter.com.
+
+    ## Authentication
+    All endpoints require an API key to access, this can be obtained  either by speaking to one of our team, or by going to the dashboard at `https://tryspecter.com`, navigating to your settings and then creating an API key from there.
+    Once the API key is obtained it can be used in a query by passing it as a  header to the query:
+    ```bash
+      curl -X 'GET' \
+        -H 'X-API-KEY: 1234-2345-3456-4567' \
+        -H 'accept: application/json' \
+        'https://app.tryspecter.com/api/v1/lists'
+    ```
+    ## Credits
+    When signing up for your API key you will be given a number of credits, these can be used for API queries. Unless stated otherwise each endpoint will use up 1 credit.
+  termsOfService: https://tryspecter.com/terms/
+  contact:
+    name: API support
+    email: api-support@tryspecter.com
+  version: 1.0.0
+servers:
+  - description: Production
+    url: https://app.tryspecter.com/api/v1
+security:
+  - ApiKeyAuth: []
+tags:
+  - name: Companies
+    description: |
+      Endpoints that provide the most up to date information about all the  companies in our data set. Giving the ability to query by a specific  company id, or using a keyword such as the domain.
+
+      This also allows us to enrich the data about a company if we either do not have it or it is older than expected, which means you always have the  most up-to-date information possible.
+  - name: Companies Lists
+    description: |
+      Create, query and maintain lists of companies that are of particular  interest. The endpoints here allow you to interrogate and maintain those lists using a programmatic interface.
+paths:
+  /companies:
+    post:
+      tags:
+        - Companies
+      summary: Get and enrich companies
+      description: |
+        Searches through the internal companies dataset and returns all the most up-to-date information related to any companies that match the identifier in the query body.
+        Using the `domain` identifier searches for the domain as an alias as well as the main domain for companies. In this case this endpoint can return more than one result. 
+
+        If there are no results for the query then an empty list will be returned and our analysts will be notified internally to start gathering information for that company to enrich it.
+
+        The `last_updated` field is the last time that the data was updated, and will change whenever new data becomes available.
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl  -0 -v \
+              -H "Content-Type: application/json" \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X 'POST' 'https://app.tryspecter.com/api/v1/companies' \
+              --data-binary @- << EOF
+                { "domain": "tryspecter.com" }
+            EOF
+      requestBody:
+        description: |
+          A request body must be supplied in `JSON` format with only one of the properties specified. If more than one property is specified then a validation error will be returned.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                website_url:
+                  description: |
+                    The url of the company, it can be in the form with the `http://` or `https://` as well as with or without `www.`
+                  type: string
+                domain:
+                  description: |
+                    The domain, or any domain aliases of the company. 
+                    For instance, `tryspecter.com` would return the information for Specter.
+                  type: string
+                linkedin_url:
+                  description: |
+                    The LinkedIn url of the company being requested, this can be easier if the domain or website url is not known and, it can  be in the form with the `http://` or `https://` as well as with  or without `www.`.
+                  type: string
+                linkedin_id:
+                  description: |
+                    The LinkedIn id for the company, this is can be found on the sales nav part of LinkedIn, if it isn't a number an error will be returned.
+                  type: number
+                crunchbase_url:
+                  description: |
+                    The full url from Crunchbase, and it can be in the form with  the `http://` or `https://` as well as with or without `www.`.
+                  type: string
+              additionalProperties: false
+      responses:
+        '200':
+          $ref: '#/components/responses/CompaniesResponse'
+        '400':
+          $ref: '#/components/responses/CompanyBadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /companies/{companyId}:
+    get:
+      tags:
+        - Companies
+      summary: Get the company info by ID
+      description: |
+        Given the Specter company Id, this endpoint will return the most up-to-date information about that company if it exists. If the company doesn't exist then a 404 will be returned.
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl -0 -v \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X 'GET' 'https://app.tryspecter.com/api/v1/companies/5e3a7f2b0aa7a3270a55f2a7'
+      responses:
+        '200':
+          description: The company information related to the requested ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompaniesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: The company does not exist and nothing is returned.
+  /companies/lists:
+    get:
+      tags:
+        - Companies Lists
+      operationId: get-companies-lists
+      summary: Gets all company lists
+      description: |
+        All the lists which are related to companies that you are able to see  are returned, this can include lists that you did not create but are shared  with you.
+        Includes the number of companies per list, to see all of the companies in a list use the GET endpoint for that list id.
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl -0 -v \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X 'GET' 'https://app.tryspecter.com/api/v1/lists'
+      responses:
+        '200':
+          $ref: '#/components/responses/CompaniesListsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Companies Lists
+      operationId: create-new-companies-list
+      summary: Create company list
+      description: |
+        Creates a new list of companies. These are often used to filter a longer list of companies, such as those in Europe, down to those which you want to investigate in more detail.
+
+        Companies can either be added as part of this call via a list of company IDs or they can be added later by using the PUT endpoint for the list id.
+
+        The endpoint will return the ID of the newly created list.
+
+        Note: You cannot create two lists with the same name. If you already have a list with the name then you will either have to change its name, or create a list with a new name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              title: Name and list of companies to add to the new list
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  title: Name of the list to create
+                  example: My list
+                company_ids:
+                  type: array
+                  items:
+                    type: string
+                    title: ID of company being added
+                    example: 5e3a7f2b0aa7a3270a55f2a7
+      responses:
+        '200':
+          description: The ID of the list that was created
+          content:
+            application/json:
+              schema:
+                type: string
+                title: ID of the list
+                example: a1d2434c-e089-480a-8a27-9909d2f558b4
+                format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /companies/lists/{listId}:
+    get:
+      tags:
+        - Companies Lists
+      summary: Get company list info
+      description: |
+        Given the company list id this will return all the information about the  list including the companies that are part of it.
+
+        Note that at the moment there is no pagination on this, though it  may change.
+      responses:
+        '200':
+          $ref: '#/components/responses/CompaniesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      tags:
+        - Companies Lists
+      summary: Add companies to a list
+      description: |
+        A useful way of adding more companies to a list that is already created.
+
+        If you want to create a new list you can create the list and add companies at the same time by doing a POST on the companies endpoint.
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl  -0 -v \
+              -H "Content-Type: application/json" \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X '' 'https://app.tryspecter.com/api/v1/lists/122342' \
+              --data-binary @- << EOF
+              [ "company_1", "company_2" }
+            EOF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              title: List of companies to add to the list
+              type: array
+              items:
+                type: string
+                title: ID of company being added
+                example: 5e3a7f2b0aa7a3270a55f2a7
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Companies Lists
+      summary: Delete a company list
+      description: |
+        Deletes the list associated with the list ID in the url.
+        Note that this is a irreversible action.
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /companies/lists/{listId}/results:
+    get:
+      tags:
+        - Companies List
+      summary: Gets company list results
+      description: |
+        For a company lists that are created it's important to be able to see the
+        data and signals. This endpoint returns that data allowing you to do
+        programmatic analysis on the data.
+
+        Along with this the new funding and new growth signals can also be returned
+        which returns any results that have had changes in growth or funding. This
+        is also done using the body fields `newGrowthHighlights` and 
+        `newFundingHighlights`.
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl -0 -v \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X 'GET' 'https://app.tryspecter.com/api/v1/saved_searches'
+      requestBody:
+        description: |
+          A request body must be supplied in `JSON` format with only one of the properties specified.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newGrowthHighlights:
+                  description: |
+                    Tells the results to have only companies with new growth highlights.
+                  type: boolean
+                newFundingHighlights:
+                  description: |
+                    Tells the results to have only companies with new funding highlights.
+                  type: boolean
+              additionalProperties: false
+      responses:
+        '200':
+          $ref: '#/components/responses/CompaniesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /saved_searches/results:
+    get:
+      tags:
+        - Saved Searches
+      summary: Gets results for a saved search
+      description: |
+        For a saved search that has been saved on tryspecter.com, this endpoint will
+        return all the results related to that search.
+
+        ## Companies
+        For companies specifically there is the option of some specific filters in
+        the body:    
+
+        Add `new` in the body as `true` will return only companies that were seen
+        for the first time in this search.
+
+        Adding `newGrowthHighlights` in the body as `true` will return only companies
+        that have new growth highlights.
+
+        Adding `newFundingHighlights` in the body as `true` will return only companies
+        that have new funding highlights.
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl -0 -v \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X 'GET' 'https://app.tryspecter.com/api/v1/saved_searches'
+      requestBody:
+        description: |
+          A request body must be supplied in `JSON` format with only one of the properties specified.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new:
+                  description: |
+                    Tells the results to have only new data since the last delivery. Note: Applies only to company searches
+                  type: boolean
+                newGrowthHighlights:
+                  description: |
+                    Tells the results to have only data with new growth highlights. Note: Applies only to company searches
+                  type: boolean
+                newFundingHighlights:
+                  description: |
+                    Tells the results to have only data with new funding highlights. Note: Applies only to company searches
+                  type: boolean
+              additionalProperties: false
+      responses:
+        '200':
+          $ref: '#/components/responses/CompaniesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /saved_searches:
+    get:
+      tags:
+        - Saved Searches
+      summary: Gets all saved searches
+      description: |
+        Returns all the saved searches available
+      x-code-samples:
+        - lang: curl
+          label: Curl Example
+          source: |
+            curl -0 -v \
+              -H 'X-API-KEY: 1234-2345-3456-4567' \
+              -X 'GET' 'https://app.tryspecter.com/api/v1/saved_searches'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /saved_searches/{searchName}:
+    get:
+      tags:
+        - Saved Searches
+      summary: Get saved search query
+      description: Returns the query that the saved search is related to
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Saved Searches
+      summary: Delete a saved search
+      description: |
+        Deletes the saved search association, if you are the owner then this will delete the saved search completely.
+        It returns the saved search query in case the search needs to be recreated.
+      responses:
+        '200':
+          description: The query that the search is related to.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    Website:
+      properties:
+        domain:
+          title: Website.domain
+          type: string
+        url:
+          title: Website.url
+          type: string
+        domain_aliases:
+          items:
+            title: Website.domain_aliases.[]
+            type: string
+          title: Website.domain_aliases
+          type: array
+      required:
+        - domain
+        - url
+        - domain_aliases
+      additionalProperties: false
+      title: Website
+      type: object
+    HQ:
+      properties:
+        city:
+          title: HQ.city
+          type: string
+        state:
+          title: HQ.state
+          type: string
+        country:
+          title: HQ.country
+          type: string
+        region:
+          title: HQ.region
+          type: string
+      required:
+        - city
+        - state
+        - country
+        - region
+      additionalProperties: false
+      title: HQ
+      type: object
+    Contact:
+      properties:
+        phone_number:
+          title: Contact.phone_number
+          type: string
+        email:
+          title: Contact.email
+          type: string
+      required:
+        - phone_number
+        - email
+      additionalProperties: false
+      title: Contact
+      type: object
+    Acquisition:
+      properties:
+        acquirer:
+          title: Acquisition.acquirer
+          type: string
+        date:
+          title: Acquisition.date
+          type: string
+        amount_usd:
+          title: Acquisition.amount_usd
+          type: number
+      required:
+        - acquirer
+        - date
+        - amount_usd
+      additionalProperties: false
+      title: Acquisition
+      type: object
+    Funding:
+      properties:
+        total_funding_usd:
+          title: Funding.total_funding_usd
+          type: number
+        last_funding_usd:
+          title: Funding.last_funding_usd
+          type: number
+        last_funding_date:
+          title: Funding.last_funding_date
+          type: string
+        last_funding_type:
+          title: Funding.last_funding_type
+          type: string
+        round_count:
+          title: Funding.round_count
+          type: number
+        round_details:
+          items: {}
+          title: Funding.round_details
+          type: array
+        post_money_valuation_usd:
+          title: Funding.post_money_valuation_usd
+          type: number
+      required:
+        - total_funding_usd
+        - last_funding_usd
+        - last_funding_date
+        - last_funding_type
+        - round_count
+        - round_details
+        - post_money_valuation_usd
+      additionalProperties: false
+      title: Funding
+      type: object
+    Web:
+      properties:
+        visits:
+          title: Web.visits
+          type: number
+        popularity_rank:
+          title: Web.popularity_rank
+          type: number
+        technologies:
+          items:
+            title: Web.technologies.[]
+            type: string
+          title: Web.technologies
+          type: array
+        it_spend:
+          title: Web.it_spend
+          type: number
+        top_country:
+          title: Web.top_country
+          type: string
+        bounce_rate:
+          title: Web.bounce_rate
+          type: number
+        bounce_rate_3mo_change:
+          title: Web.bounce_rate_3mo_change
+          type: number
+        pages_per_visit:
+          title: Web.pages_per_visit
+          type: number
+        pages_per_visit_3mo_change:
+          title: Web.pages_per_visit_3mo_change
+          type: number
+        session_duration:
+          title: Web.session_duration
+          type: number
+        session_duration_3mo_change:
+          title: Web.session_duration_3mo_change
+          type: number
+        traffic_source:
+          title: Web.traffic_source
+          type: string
+        country_breakdown:
+          title: Web.country_breakdown
+          type: string
+        social_traffic_breakdown:
+          title: Web.social_traffic_breakdown
+          type: string
+        paid_search_pctg:
+          title: Web.paid_search_pctg
+          type: number
+        organic_search_pctg:
+          title: Web.organic_search_pctg
+          type: number
+        similar_sites:
+          title: Web.similar_sites
+          type: string
+      required:
+        - visits
+        - popularity_rank
+        - technologies
+        - it_spend
+        - top_country
+        - bounce_rate
+        - bounce_rate_3mo_change
+        - pages_per_visit
+        - pages_per_visit_3mo_change
+        - session_duration
+        - session_duration_3mo_change
+        - traffic_source
+        - country_breakdown
+        - social_traffic_breakdown
+        - paid_search_pctg
+        - organic_search_pctg
+        - similar_sites
+      additionalProperties: false
+      title: Web
+      type: object
+    News:
+      properties:
+        date:
+          title: News.date
+          type: string
+        title:
+          title: News.title
+          type: string
+        url:
+          title: News.url
+          type: string
+        publisher:
+          title: News.publisher
+          type: string
+      required:
+        - date
+        - title
+        - url
+        - publisher
+      additionalProperties: false
+      title: News
+      type: object
+    G2ProductData:
+      properties:
+        product_name:
+          title: G2ProductData.product_name
+          type: string
+        url:
+          title: G2ProductData.url
+          type: string
+        review_count:
+          title: G2ProductData.review_count
+          type: number
+        rating:
+          title: G2ProductData.rating
+          type: number
+      required:
+        - product_name
+        - url
+      additionalProperties: false
+      title: G2ProductData
+      type: object
+    G2Reviews:
+      properties:
+        products:
+          items:
+            $ref: '#/components/schemas/G2ProductData'
+          title: G2Reviews.products
+          type: array
+        rating_avg:
+          title: G2Reviews.rating_avg
+          type: number
+        review_count:
+          title: G2Reviews.review_count
+          type: number
+      required:
+        - products
+        - rating_avg
+        - review_count
+      additionalProperties: false
+      title: G2Reviews
+      type: object
+    TrustpilotReviews:
+      properties:
+        url:
+          title: TrustpilotReviews.url
+          type: string
+        verified:
+          title: TrustpilotReviews.verified
+          type: boolean
+        review_count:
+          title: TrustpilotReviews.review_count
+          type: number
+        review_avg:
+          title: TrustpilotReviews.review_avg
+          type: number
+      required:
+        - url
+      additionalProperties: false
+      title: TrustpilotReviews
+      type: object
+    Twitter:
+      properties:
+        url:
+          title: Twitter.url
+          type: string
+        follower_count:
+          title: Twitter.follower_count
+          type: number
+      required:
+        - url
+        - follower_count
+      additionalProperties: false
+      title: Twitter
+      type: object
+    Facebook:
+      properties:
+        url:
+          title: Facebook.url
+          type: string
+      required:
+        - url
+      additionalProperties: false
+      title: Facebook
+      type: object
+    Linkedin:
+      properties:
+        url:
+          title: Linkedin.url
+          type: string
+        follower_count:
+          title: Linkedin.follower_count
+          type: number
+      required:
+        - url
+        - follower_count
+      additionalProperties: false
+      title: Linkedin
+      type: object
+    ITunes:
+      properties:
+        url:
+          title: ITunes.url
+          type: string
+        app_id:
+          title: ITunes.app_id
+          type: string
+        review_count:
+          title: ITunes.review_count
+          type: number
+        rating:
+          title: ITunes.rating
+          type: number
+      required:
+        - url
+        - app_id
+        - review_count
+        - rating
+      additionalProperties: false
+      title: ITunes
+      type: object
+    GoogePlay:
+      properties:
+        url:
+          title: GoogePlay.url
+          type: string
+        app_id:
+          title: GoogePlay.app_id
+          type: string
+        review_count:
+          title: GoogePlay.review_count
+          type: number
+        rating:
+          title: GoogePlay.rating
+          type: number
+        install_count:
+          title: GoogePlay.install_count
+          type: number
+      required:
+        - url
+        - app_id
+        - review_count
+        - rating
+        - install_count
+      additionalProperties: false
+      title: GoogePlay
+      type: object
+    Instagram:
+      properties:
+        url:
+          title: Instagram.url
+          type: string
+        follower_count:
+          title: Instagram.follower_count
+          type: number
+        following_count:
+          title: Instagram.following_count
+          type: number
+      required:
+        - url
+        - follower_count
+        - following_count
+      additionalProperties: false
+      title: Instagram
+      type: object
+    Crunchbase:
+      properties:
+        url:
+          title: Crunchbase.url
+          type: string
+      required:
+        - url
+      additionalProperties: false
+      title: Crunchbase
+      type: object
+    Socials:
+      properties:
+        twitter:
+          $ref: '#/components/schemas/Twitter'
+          title: Socials.twitter
+        facebook:
+          $ref: '#/components/schemas/Facebook'
+          title: Socials.facebook
+        linkedin:
+          $ref: '#/components/schemas/Linkedin'
+          title: Socials.linkedin
+        itunes:
+          $ref: '#/components/schemas/ITunes'
+          title: Socials.itunes
+        googleplay:
+          $ref: '#/components/schemas/GoogePlay'
+          title: Socials.googleplay
+        instagram:
+          $ref: '#/components/schemas/Instagram'
+          title: Socials.instagram
+        crunchbase:
+          $ref: '#/components/schemas/Crunchbase'
+          title: Socials.crunchbase
+      required:
+        - twitter
+        - facebook
+        - linkedin
+        - itunes
+        - googleplay
+        - instagram
+        - crunchbase
+      additionalProperties: false
+      title: Socials
+      type: object
+    ChangeMetric:
+      properties:
+        value:
+          title: ChangeMetric.value
+          type: number
+        change:
+          title: ChangeMetric.change
+          type: number
+        percentage:
+          title: ChangeMetric.percentage
+          type: number
+      required:
+        - value
+        - change
+      additionalProperties: false
+      title: ChangeMetric
+      type: object
+    TractionMetric:
+      properties:
+        latest:
+          title: TractionMetric.latest
+          type: number
+        '"1mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"2mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"3mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"4mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"5mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"6mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"12mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+        '"24mo"':
+          $ref: '#/components/schemas/ChangeMetric'
+      required:
+        - latest
+      additionalProperties: false
+      title: TractionMetric
+      type: object
+    TractionMetrics:
+      properties:
+        web_visits:
+          $ref: '#/components/schemas/TractionMetric'
+      additionalProperties: false
+      title: TractionMetrics
+      type: object
+    Company:
+      properties:
+        id:
+          title: CompanyResponse.id
+          type: string
+        organization_name:
+          title: CompanyResponse.organization_name
+          type: string
+        organization_rank:
+          title: CompanyResponse.organization_rank
+          type: number
+        primary_role:
+          title: CompanyResponse.primary_role
+          type: string
+        roles:
+          items:
+            title: CompanyResponse.roles.[]
+            type: string
+          title: CompanyResponse.roles
+          type: array
+        description:
+          title: CompanyResponse.description
+          type: string
+        customer_focus:
+          title: CompanyResponse.customer_focus
+          type: string
+        last_updated:
+          title: CompanyResponse.last_updated
+          type: string
+        tags:
+          items:
+            title: CompanyResponse.tags.[]
+            type: string
+          title: CompanyResponse.tags
+          type: array
+        industries:
+          items:
+            title: CompanyResponse.industries.[]
+            type: string
+          title: CompanyResponse.industries
+          type: array
+        sub_industries:
+          items:
+            title: CompanyResponse.sub_industries.[]
+            type: string
+          title: CompanyResponse.sub_industries
+          type: array
+        operating_status:
+          title: CompanyResponse.operating_status
+          type: string
+        logo_url:
+          title: CompanyResponse.logo_url
+          type: string
+        highlights:
+          items:
+            title: CompanyResponse.highlights.[]
+            type: string
+          title: CompanyResponse.highlights
+          type: array
+        new_highlights:
+          items:
+            title: CompanyResponse.new_highlights.[]
+            type: string
+          title: CompanyResponse.new_highlights
+          type: array
+        regions:
+          items:
+            title: CompanyResponse.regions.[]
+            type: string
+          title: CompanyResponse.regions
+          type: array
+        founder_year:
+          title: CompanyResponse.founder_year
+          type: number
+        founders:
+          items:
+            title: CompanyResponse.founders.[]
+            type: string
+          title: CompanyResponse.founders
+          type: array
+        founder_count:
+          title: CompanyResponse.founder_count
+          type: number
+        employee_count:
+          title: CompanyResponse.employee_count
+          type: number
+        employee_count_range:
+          title: CompanyResponse.employee_count_range
+          type: string
+        revenue_estimate_usd:
+          title: CompanyResponse.revenue_estimate_usd
+          type: number
+        investors:
+          items:
+            title: CompanyResponse.investors.[]
+            type: string
+          title: CompanyResponse.investors
+          type: array
+        investor_count:
+          title: CompanyResponse.investor_count
+          type: number
+        patent_count:
+          title: CompanyResponse.patent_count
+          type: number
+        trademark_count:
+          title: CompanyResponse.trademark_count
+          type: number
+        website:
+          $ref: '#/components/schemas/Website'
+        hq:
+          $ref: '#/components/schemas/HQ'
+        contact:
+          $ref: '#/components/schemas/Contact'
+        acquisition:
+          $ref: '#/components/schemas/Acquisition'
+        ipo:
+          items: {}
+          title: CompanyResponse.ipo
+          type: array
+        growth_stage:
+          title: CompanyResponse.growth_stage
+          type: string
+        funding:
+          $ref: '#/components/schemas/Funding'
+        web:
+          $ref: '#/components/schemas/Web'
+        awards:
+          title: CompanyResponse.awards
+        award_count:
+          title: CompanyResponse.award_count
+          type: number
+        news:
+          items:
+            $ref: '#/components/schemas/News'
+          title: CompanyResponse.news
+          type: array
+        reviews:
+          properties:
+            g2:
+              $ref: '#/components/schemas/G2Reviews'
+            trustpilot:
+              $ref: '#/components/schemas/TrustpilotReviews'
+          required:
+            - g2
+          additionalProperties: false
+          title: CompanyResponse.reviews
+          type: object
+        socials:
+          $ref: '#/components/schemas/Socials'
+        traction_metrics:
+          $ref: '#/components/schemas/TractionMetrics'
+      required:
+        - id
+        - organization_name
+        - organization_rank
+        - primary_role
+        - roles
+        - description
+        - customer_focus
+        - last_updated
+        - tags
+        - industries
+        - sub_industries
+        - operating_status
+        - logo_url
+        - highlights
+        - new_highlights
+        - regions
+        - founder_year
+        - founders
+        - founder_count
+        - employee_count
+        - employee_count_range
+        - revenue_estimate_usd
+        - investors
+        - investor_count
+        - patent_count
+        - trademark_count
+        - website
+        - hq
+        - contact
+        - acquisition
+        - ipo
+        - growth_stage
+        - funding
+        - web
+        - awards
+        - award_count
+        - news
+        - reviews
+        - socials
+      additionalProperties: false
+      title: CompanyResponse
+      type: object
+    ApiKeyMissing:
+      properties:
+        errorCode:
+          description: API_KEY_MISSING
+          example: API_KEY_MISSING
+          type: string
+        message:
+          description: No API Key was presented on the header X-API-KEY
+          example: No API Key was presented on the header X-API-KEY
+          type: string
+    ApiKeyNotValid:
+      properties:
+        errorCode:
+          description: API_KEY_NOT_VALID
+          example: API_KEY_NOT_VALID
+          type: string
+        message:
+          description: API key present, but not valid
+          example: API key present, but not valid
+          type: string
+    CompaniesResponse:
+      description: The list of companies that were found in the query
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: ./Company.yaml
+  responses:
+    CompaniesResponse:
+      description: The list of companies that were found in the query
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Company'
+    CompanyBadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errorCode:
+                type: string
+                description: The type of error.
+              message:
+                type: string
+                description: |
+                  A message with information about why the request was bad, will be either a single message, or a path to the validation issues.
+          examples:
+            no-request-body:
+              summary: No request body
+              value:
+                errorCode: VALIDATION_ERROR
+                message: Cannot get companies with no request body.
+            bad-linkedin-id:
+              summary: Bad LinkedIn Id
+              value:
+                errorCode: VALIDATION_ERROR
+                message: |
+                  {"code":"invalid_type","expected":"number","received":"string","path":["linkedin_id"],"message":"Expected number, received string"}
+    Unauthorised:
+      description: Unauthorised
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ApiKeyMissing'
+              - $ref: '#/components/schemas/ApiKeyNotValid'
+    Forbidden:
+      description: Forbidden - There is no permissions to use the endpoint
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errorCode:
+                description: NOT_PERMITTED
+                type: string
+                example: NOT_PERMITTED
+              message:
+                type: string
+                description: You do not have permission to access this resource.
+                example: You do not have permission to access this resource.
+            required:
+              - errorCode
+              - message
+    CompaniesListsResponse:
+      description: The companies lists
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              properties:
+                company_count:
+                  title: The number of companies in this list
+                  type: number
+                  example: 10
+                id:
+                  title: List Id
+                  type: string
+                  example: b73c8bed-3b92-48f9-a879-40ee114dca03
+                name:
+                  title: Name of the list
+                  type: string
+                  example: Favourites
+                created_at:
+                  title: Date list was created
+                  type: string
+                  format: date-time
+                  example: '2024-11-14T10:36:12.625Z'
+                updated_at:
+                  title: Date the list was last updated
+                  type: string
+                  format: date-time
+                  example: '2024-11-14T10:36:12.625Z'
+    CompaniesListResponse:
+      description: The list including company ids
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              companies:
+                title: The companies included in this list
+                type: array
+                items:
+                  properties:
+                    company_id:
+                      title: The Specter ID of the company
+                      type: string
+                      example: 64f802d8538115f141f2ded5
+                    created_at:
+                      title: The date the company was added to the list
+                      type: string
+                      format: date-time
+                      example: '2025-01-02T17:29:46.688Z'
+              id:
+                title: List Id
+                type: string
+                example: b73c8bed-3b92-48f9-a879-40ee114dca03
+              name:
+                title: Name of the list
+                type: string
+                example: Favourites
+              created_at:
+                title: Date list was created
+                type: string
+                format: date-time
+                example: '2024-11-14T10:36:12.625Z'
+              updated_at:
+                title: Date the list was last updated
+                type: string
+                format: date-time
+                example: '2024-11-14T10:36:12.625Z'
