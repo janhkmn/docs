@@ -36,7 +36,7 @@
         "name": "API",
         "icon": "square-terminal",
         "url": "api-openapi",
-        "openapi": "redocly.api.yaml"
+        "openapi": "/redocly.api.yaml"
     },
     {
       "name": "Documentation",
